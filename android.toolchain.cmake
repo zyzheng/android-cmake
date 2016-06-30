@@ -1066,9 +1066,12 @@ if( BUILD_WITH_ANDROID_NDK )
    set( ANDROID_ABI_INCLUDE_DIRS "${ANDROID_CXX_ROOT}/llvm-libc++abi/libcxxabi/include" )
    set( ANDROID_STL_INCLUDE_DIRS     "${ANDROID_LLVM_ROOT}/libcxx/include"
                                      "${ANDROID_ABI_INCLUDE_DIRS}" )
+   set( ANDROID_STL_LIBRARY_DIRS "${ANDROID_LLVM_ROOT}/libs/${ANDROID_NDK_ABI_NAME}" )
    # android support sfiles
    include_directories ( SYSTEM ${ANDROID_NDK}/sources/android/support/include )
-   if( EXISTS "${ANDROID_LLVM_ROOT}/libs/${ANDROID_NDK_ABI_NAME}/libc++_shared.so" )
+   if( EXISTS "${ANDROID_LLVM_ROOT}/libs/${ANDROID_NDK_ABI_NAME}/libc++.a" )
+    set( __libstl               "${ANDROID_LLVM_ROOT}/libs/${ANDROID_NDK_ABI_NAME}/libc++.a" )
+   elseif( EXISTS "${ANDROID_LLVM_ROOT}/libs/${ANDROID_NDK_ABI_NAME}/libc++_static.a" )
     set( __libstl               "${ANDROID_LLVM_ROOT}/libs/${ANDROID_NDK_ABI_NAME}/libc++_static.a" )
    else()
     message( "c++ library doesn't exist" )
@@ -1104,7 +1107,12 @@ endif()
 
 # case of shared STL linkage
 if( ANDROID_STL MATCHES "shared" AND DEFINED __libstl )
- string( REPLACE "_static.a" "_shared.so" __libstl "${__libstl}" )
+ set( __temp )
+ string( REGEX REPLACE "_static\\.a$" "_shared.so" __temp "${__libstl}" )
+ if( "${__temp}" STREQUAL "${__libstl}" )
+  string( REGEX REPLACE "\\.a$" ".so" __temp "${__libstl}" )
+ endif()
+ set( __libstl "${__temp}" )
  # TODO: check if .so file exists before the renaming
 endif()
 
@@ -1497,7 +1505,7 @@ endif()
 # global includes and link directories
 include_directories( SYSTEM "${ANDROID_SYSROOT}/usr/include" ${ANDROID_STL_INCLUDE_DIRS} )
 get_filename_component(__android_install_path "${CMAKE_INSTALL_PREFIX}/libs/${ANDROID_NDK_ABI_NAME}" ABSOLUTE) # avoid CMP0015 policy warning
-link_directories( "${__android_install_path}" )
+link_directories( "${__android_install_path}" ${ANDROID_STL_LIBRARY_DIRS} )
 
 # detect if need link crtbegin_so.o explicitly
 if( NOT DEFINED ANDROID_EXPLICIT_CRT_LINK )
